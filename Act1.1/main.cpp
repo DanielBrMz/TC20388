@@ -24,34 +24,42 @@
  * - Inicialización de variables: O(1)
  * - Bucle principal de fusión: O(n)
  * - Bucles de limpieza para elementos restantes: O(k) y O(m) en el peor caso
- * - Operaciones push_back: O(1) 
  * 
  * Complejidad Espacial: O(n), donde n es la suma de los tamaños de leftArr y rightArr
  */
-std::vector<double> merge(const std::vector<double>& leftArr, const std::vector<double>& rightArr) {
-    std::vector<double> mergedArr;
-    size_t leftIndex = 0, rightIndex = 0;
+void merge(std::vector<double>& arr, int left, int middle, int right) {
+    int leftSize = middle - left + 1;
+    int rightSize = right - middle;
 
-    // O(n), donde n es la suma de los tamaños de leftArr y rightArr
-    while (leftIndex < leftArr.size() && rightIndex < rightArr.size()) {
-        if (leftArr[leftIndex] < rightArr[rightIndex]) {
-            mergedArr.push_back(leftArr[leftIndex++]);
+    std::vector<double> leftArr(leftSize);
+    std::vector<double> rightArr(rightSize);
+
+    for (int i = 0; i < leftSize; ++i) {
+        leftArr[i] = arr[left + i];
+    }
+    for (int j = 0; j < rightSize; ++j) {
+        rightArr[j] = arr[middle + 1 + j];
+    }
+
+    int leftIndex = 0, rightIndex = 0;
+    int mergedIndex = left;
+
+    while (leftIndex < leftSize && rightIndex < rightSize) {
+        if (leftArr[leftIndex] <= rightArr[rightIndex]) {
+            arr[mergedIndex] = leftArr[leftIndex++];
         } else {
-            mergedArr.push_back(rightArr[rightIndex++]);
+            arr[mergedIndex] = rightArr[rightIndex++];
         }
+        ++mergedIndex;
     }
 
-    // O(k), donde k es el número de elementos restantes en leftArr
-    while (leftIndex < leftArr.size()) {
-        mergedArr.push_back(leftArr[leftIndex++]);
+    while (leftIndex < leftSize) {
+        arr[mergedIndex++] = leftArr[leftIndex++];
     }
 
-    // O(m), donde m es el número de elementos restantes en rightArr
-    while (rightIndex < rightArr.size()) {
-        mergedArr.push_back(rightArr[rightIndex++]);
+    while (rightIndex < rightSize) {
+        arr[mergedIndex++] = rightArr[rightIndex++];
     }
-
-    return mergedArr;
 }
 
 /**
@@ -77,23 +85,19 @@ std::vector<double> merge(const std::vector<double>& leftArr, const std::vector<
  * 
  * Complejidad Espacial: O(n) debido al espacio auxiliar utilizado en el paso de fusión
  */
-std::vector<double> mergeSort(std::vector<double>& arr) {
-    if (arr.size() <= 1) {
-        return arr;  
+void mergeSort(std::vector<double>& arr, int left, int right) {
+    if (left >= right) {
+        return;  // Caso base: un solo elemento está ordenado por definición
     }
 
-    size_t middle = arr.size() / 2;
+    int middle = left + (right - left) / 2;
 
-    // 1. Dividir el vector en dos subvectores (Divide)
-    std::vector<double> leftArr(arr.begin(), arr.begin() + middle);  
-    std::vector<double> rightArr(arr.begin() + middle, arr.end());
+    // 1. y 2. Dividr el arreglo mediante indices y ordenar recursivamente los subvectores
+    mergeSort(arr, left, middle);
+    mergeSort(arr, middle + 1, right);
 
-    // 2. Ordenar recursivamente los subvectores (Conquer)
-    leftArr = mergeSort(leftArr);  // T(n/2)
-    rightArr = mergeSort(rightArr);  // T(n/2)
-
-    // 3. Combinar los subvectores ordenados (Combine)
-    return merge(leftArr, rightArr);
+    // 3. Combinar los subvectores ordenados
+    merge(arr, left, middle, right);
 }
 
 
@@ -113,10 +117,10 @@ int main() {
     }
     std::cout << std::endl;
 
-    std::vector<double> sortedArr = mergeSort(arr);
+    mergeSort(arr, 0, arr.size() - 1);
 
     std::cout << "Array ordenado:" << std::endl;
-    for (const auto& num : sortedArr) {
+    for (const auto& num : arr) {
         std::cout << num << " ";
     }
     std::cout << std::endl;

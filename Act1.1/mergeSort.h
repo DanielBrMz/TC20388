@@ -2,5 +2,5 @@
 
 #include <vector>
 
-std::vector<double> merge(const std::vector<double>& leftArr, const std::vector<double>& rightArr);
-std::vector<double> mergeSort(std::vector<double>& arr);
+void merge(std::vector<double>& arr, int left, int middle, int right);
+void mergeSort(std::vector<double>& arr, int left, int right);
