@@ -6,9 +6,13 @@
     * Implementación de Merge Sort 
     * Nota: El programa espera que el archivo de texto tenga el formato correcto.
     * 
-    * Autor: Daniel Alfredo Barreras Meraz
-    * Matrícula: A01254805
-    * Fecha: 21 de septiembre de 2023
+    * Autores: 
+      - Daniel Alfredo Barreras Meraz
+      - Yair Salvador Beltrán Ríos
+    * Matrículas:
+      - A01254805
+      - A01254673
+    * Fecha: 12 de agosto de 2024
 */
 
 int main() {
