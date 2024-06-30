@@ -2,6 +2,7 @@
 #define SHA3_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* -------------------------------------------------------------------------
  * Works when compiled for either 32-bit or 64-bit targets, optimized for 
