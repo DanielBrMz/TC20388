@@ -10,11 +10,9 @@
  * 
  * Autores: 
  * - Daniel Alfredo Barreras Meraz
- * - Yair Salvador Beltrán Ríos
  * Matrículas:
  * - A01254805
- * - A01254673
- * Fecha: 29 de agosto de 2024
+ * Fecha: 26 de septiembre de 2024
  */
 
 // Función para leer el contenido de un archivo
