@@ -80,24 +80,29 @@ int main() {
     vector<string> mcodes = {"mcode1.txt", "mcode2.txt", "mcode3.txt"};
 
     // Parte 1
+    cout << "Parte 1" << endl;
     for (const auto& trans : transmissions) {
         string transContent = readFile(trans);
         for (const auto& mcode : mcodes) {
             string mcodeContent = readFile(mcode);
             int position;
             bool found = containsSubstring(transContent, mcodeContent, position);
-            cout << (found ? "true " + to_string(position) : "false") << endl;
+            cout << (found ? "true " + to_string(position) : "false 0") << endl;
         }
     }
+    cout << endl;
 
     // Parte 2
+    cout << "Parte 2" << endl;
     for (const auto& trans : transmissions) {
         string transContent = readFile(trans);
         auto [start, end] = findLongestPalindrome(transContent);
         cout << start << " " << end << endl;
     }
+    cout << endl;
 
     // Parte 3
+    cout << "Parte 3" << endl;
     string trans1 = readFile(transmissions[0]);
     string trans2 = readFile(transmissions[1]);
     auto [start, end] = findLongestCommonSubstring(trans1, trans2);
