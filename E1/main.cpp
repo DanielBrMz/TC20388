@@ -5,7 +5,8 @@
 #include <algorithm>
 
 /*
- * Implementación mejorada de análisis de transmisiones y detección de códigos maliciosos
+ * Implementación de análisis de transmisiones y detección de códigos maliciosos
+ * utilizando el algoritmo de Rabin-Karp para la búsqueda de subcadenas.
  * 
  * Autores: 
  * - Daniel Alfredo Barreras Meraz
@@ -15,34 +16,92 @@
  */
 
 // Función para leer el contenido de un archivo
-// Algoritmo: Lectura secuencial (no es un algoritmo avanzado [clasico], pero es eficiente para esta tarea)
+// Algoritmo: Lectura secuencial
 // Complejidad: O(n), donde n es el número de caracteres en el archivo
-// La complejidad es lineal debido a la lectura secuencial de caracteres
 std::string readFile(const std::string& filename) {
-    std::ifstream file(filename);
-    std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+    std::ifstream file(filename.c_str());  // Usar c_str() para compatibilidad
+    std::string content;
+    char ch;
+    while (file.get(ch)) { 
+        content.push_back(ch);
+    }
+    file.close();
     return content;
 }
 
-// Función para buscar una subcadena dentro de una cadena
-// Algoritmo: Búsqueda de subcadenas de Rabin-Karp (algoritmo de string matching)
-// Complejidad: O(n + m), donde n es la longitud de str y m es la longitud de sub
-// En el peor caso, puede ser O(n*m), pero en promedio es O(n + m)
+// Función para buscar una subcadena dentro de una cadena usando Rabin-Karp
+// Algoritmo: Rabin-Karp
+// Complejidad: O(n + m) en promedio, O(nm) en el peor caso
+// donde n es la longitud de str y m es la longitud de sub
 bool containsSubstring(const std::string& str, const std::string& sub, int& position) {
-    // Implementación simplificada de Rabin-Karp para demostración
-    // Una implementación completa incluiría cálculo de hash y comparación eficiente
-    size_t pos = str.find(sub);
-    if (pos != std::string::npos) {
-        position = pos + 1;
-        return true;
+    /*
+     * Elegí el algoritmo de Rabin-Karp en lugar de la fuerza bruta por varias 
+     * razones. Primero, es eficiente, con una complejidad promedio de O(n + m), 
+     * lo cual es ideal para buscar múltiples códigos maliciosos en transmisiones 
+     * largas. Además, es adaptable y puede modificarse fácilmente para buscar 
+     * varios patrones al mismo tiempo, en este caso fue modificado para solo 
+     * considerar caracteres alfanuméricos [A-Z0-9] lo que es útil para este caso 
+     * en específico. Implementar Rabin-Karp también me sirvió para demostrarme 
+     * que puedo investigar y aprender el algoritmo más adecuado para resolver un 
+     * problema de búsqueda de cadenas, lo cual es valioso en un contexto académico/
+     * profesional. Por último, lo elegí porque es eficiente para manejar grandes 
+     * volúmenes de datos, algo común en la detección de códigos maliciosos en el 
+     * mundo real, y maneja bien las colisiones de hash con verificaciones adicionales.
+     */
+
+    const int BASE = 16; // Base para el sistema hexadecimal
+    const int MOD = 1e9 + 7; // Un número primo grande
+
+    int n = str.length(), m = sub.length();
+    if (m > n) return false;
+
+    // Función lambda para convertir un carácter a su valor numérico (me gusta usar lambdas lol)
+    auto charToInt = [](char c) {
+        return (c >= '0' && c <= '9') ? c - '0' : c - 'A' + 10;
+    };
+
+    // Calcular el hash del patrón y el hash inicial de la ventana
+    long long patternHash = 0, windowHash = 0;
+    long long h = 1;
+    for (int i = 0; i < m - 1; i++) {
+        h = (h * BASE) % MOD;
     }
+
+    for (int i = 0; i < m; i++) {
+        patternHash = (patternHash * BASE + charToInt(sub[i])) % MOD;
+        windowHash = (windowHash * BASE + charToInt(str[i])) % MOD;
+    }
+
+    // Deslizar la ventana y comparar hashes
+    for (int i = 0; i <= n - m; i++) {
+        if (patternHash == windowHash) {
+            // Verificar carácter por carácter en caso de colisión
+            bool match = true;
+            for (int j = 0; j < m; j++) {
+                if (str[i + j] != sub[j]) {
+                    match = false;
+                    break;
+                }
+            }
+            if (match) {
+                position = i + 1; // +1 porque las posiciones empiezan en 1
+                return true;
+            }
+        }
+
+        // Calcular el hash para la siguiente ventana
+        if (i < n - m) {
+            windowHash = (BASE * (windowHash - charToInt(str[i]) * h) + charToInt(str[i + m])) % MOD;
+            if (windowHash < 0) windowHash += MOD;
+        }
+    }
+
     return false;
 }
 
 // Función para encontrar el palíndromo más largo en una cadena
-// Algoritmo: Expansión alrededor del centro (variante de programación dinámica)
+// Algoritmo: Expansión alrededor del centro
 // Complejidad: O(n^2), donde n es la longitud de la cadena
-// Aunque la complejidad es cuadrática, este método es más eficiente en espacio que la PD pura
 std::pair<int, int> findLongestPalindrome(const std::string& str) {
     int start = 0, maxLength = 1;
     int len = str.length();
@@ -77,8 +136,7 @@ std::pair<int, int> findLongestPalindrome(const std::string& str) {
 
 // Función para encontrar la subcadena común más larga entre dos cadenas
 // Algoritmo: Programación Dinámica (DP)
-// Complejidad: O(m*n) en tiempo y espacio, donde m y n son las longitudes de str1 y str2 respectivamente
-// Utiliza una matriz DP para almacenar longitudes de subcadenas comunes
+// Complejidad: O(m*n), donde m y n son las longitudes de str1 y str2 respectivamente
 std::pair<int, int> findLongestCommonSubstring(const std::string& str1, const std::string& str2) {
     int m = str1.length();
     int n = str2.length();
@@ -106,9 +164,6 @@ int main() {
     std::vector<std::string> mcodes = {"mcode1.txt", "mcode2.txt", "mcode3.txt"};
 
     // Parte 1: Buscar códigos maliciosos en las transmisiones
-    // Complejidad: O(T * M * (N + L)), donde T es el número de transmisiones,
-    // M es el número de códigos maliciosos, N es la longitud promedio de las transmisiones,
-    // y L es la longitud promedio de los códigos maliciosos
     std::cout << "Parte 1" << std::endl;
     for (const auto& trans : transmissions) {
         std::string transContent = readFile(trans);
@@ -122,7 +177,6 @@ int main() {
     std::cout << std::endl;
 
     // Parte 2: Encontrar el palíndromo más largo en cada transmisión
-    // Complejidad: O(T * N^2), donde T es el número de transmisiones y N es la longitud promedio de las transmisiones
     std::cout << "Parte 2" << std::endl;
     for (const auto& trans : transmissions) {
         std::string transContent = readFile(trans);
@@ -132,7 +186,6 @@ int main() {
     std::cout << std::endl;
 
     // Parte 3: Encontrar la subcadena común más larga entre las transmisiones
-    // Complejidad: O(N^2), donde N es la longitud promedio de las transmisiones
     std::cout << "Parte 3" << std::endl;
     std::string trans1 = readFile(transmissions[0]);
     std::string trans2 = readFile(transmissions[1]);
@@ -141,21 +194,3 @@ int main() {
 
     return 0;
 }
-
-/*
- * Análisis de complejidad global:
- * 
- * 1. Lectura de archivos (readFile): O(N) para cada archivo, donde N es el número de caracteres.
- * 2. Búsqueda de subcadenas (containsSubstring): O(N + L) en promedio para cada búsqueda, donde N es la longitud de la transmisión y L la longitud del código malicioso.
- * 3. Búsqueda de palíndromos (findLongestPalindrome): O(N^2) para cada transmisión.
- * 4. Búsqueda de subcadena común más larga (findLongestCommonSubstring): O(N^2), donde N es la longitud máxima entre las dos transmisiones.
- * 
- * Complejidad total:
- * O(T*N + T*M*(N+L) + T*N^2 + N^2), donde:
- * T: número de transmisiones
- * N: longitud máxima de las transmisiones
- * M: número de códigos maliciosos
- * L: longitud máxima de los códigos maliciosos
- * 
- * La complejidad está dominada por la búsqueda de palíndromos y la búsqueda de subcadena común más larga, resultando en una complejidad general de O(T*N^2 + N^2).
- */
