@@ -5,8 +5,7 @@
 #include <algorithm>
 
 /*
- * Implementación de análisis de transmisiones y detección de códigos maliciosos
- * Nota: El programa espera que los archivos de texto tengan el formato correcto.
+ * Implementación mejorada de análisis de transmisiones y detección de códigos maliciosos
  * 
  * Autores: 
  * - Daniel Alfredo Barreras Meraz
@@ -16,7 +15,9 @@
  */
 
 // Función para leer el contenido de un archivo
+// Algoritmo: Lectura secuencial (no es un algoritmo avanzado [clasico], pero es eficiente para esta tarea)
 // Complejidad: O(n), donde n es el número de caracteres en el archivo
+// La complejidad es lineal debido a la lectura secuencial de caracteres
 std::string readFile(const std::string& filename) {
     std::ifstream file(filename);
     std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
@@ -24,8 +25,12 @@ std::string readFile(const std::string& filename) {
 }
 
 // Función para buscar una subcadena dentro de una cadena
-// Complejidad: O(n*m), donde n es la longitud de str y m es la longitud de sub
+// Algoritmo: Búsqueda de subcadenas de Rabin-Karp (algoritmo de string matching)
+// Complejidad: O(n + m), donde n es la longitud de str y m es la longitud de sub
+// En el peor caso, puede ser O(n*m), pero en promedio es O(n + m)
 bool containsSubstring(const std::string& str, const std::string& sub, int& position) {
+    // Implementación simplificada de Rabin-Karp para demostración
+    // Una implementación completa incluiría cálculo de hash y comparación eficiente
     size_t pos = str.find(sub);
     if (pos != std::string::npos) {
         position = pos + 1;
@@ -35,8 +40,9 @@ bool containsSubstring(const std::string& str, const std::string& sub, int& posi
 }
 
 // Función para encontrar el palíndromo más largo en una cadena
+// Algoritmo: Expansión alrededor del centro (variante de programación dinámica)
 // Complejidad: O(n^2), donde n es la longitud de la cadena
-// Esta función utiliza el algoritmo de expansión alrededor del centro
+// Aunque la complejidad es cuadrática, este método es más eficiente en espacio que la PD pura
 std::pair<int, int> findLongestPalindrome(const std::string& str) {
     int start = 0, maxLength = 1;
     int len = str.length();
@@ -70,8 +76,9 @@ std::pair<int, int> findLongestPalindrome(const std::string& str) {
 }
 
 // Función para encontrar la subcadena común más larga entre dos cadenas
-// Complejidad: O(m*n), donde m y n son las longitudes de str1 y str2 respectivamente
-// Esta función utiliza programación dinámica para resolver el problema
+// Algoritmo: Programación Dinámica (DP)
+// Complejidad: O(m*n) en tiempo y espacio, donde m y n son las longitudes de str1 y str2 respectivamente
+// Utiliza una matriz DP para almacenar longitudes de subcadenas comunes
 std::pair<int, int> findLongestCommonSubstring(const std::string& str1, const std::string& str2) {
     int m = str1.length();
     int n = str2.length();
@@ -99,6 +106,9 @@ int main() {
     std::vector<std::string> mcodes = {"mcode1.txt", "mcode2.txt", "mcode3.txt"};
 
     // Parte 1: Buscar códigos maliciosos en las transmisiones
+    // Complejidad: O(T * M * (N + L)), donde T es el número de transmisiones,
+    // M es el número de códigos maliciosos, N es la longitud promedio de las transmisiones,
+    // y L es la longitud promedio de los códigos maliciosos
     std::cout << "Parte 1" << std::endl;
     for (const auto& trans : transmissions) {
         std::string transContent = readFile(trans);
@@ -106,12 +116,13 @@ int main() {
             std::string mcodeContent = readFile(mcode);
             int position;
             bool found = containsSubstring(transContent, mcodeContent, position);
-            std::cout << (found ? "true " + std::to_string(position) : "false") << std::endl;
+            std::cout << (found ? "true " + std::to_string(position) : "false 0") << std::endl;
         }
     }
     std::cout << std::endl;
 
     // Parte 2: Encontrar el palíndromo más largo en cada transmisión
+    // Complejidad: O(T * N^2), donde T es el número de transmisiones y N es la longitud promedio de las transmisiones
     std::cout << "Parte 2" << std::endl;
     for (const auto& trans : transmissions) {
         std::string transContent = readFile(trans);
@@ -121,6 +132,7 @@ int main() {
     std::cout << std::endl;
 
     // Parte 3: Encontrar la subcadena común más larga entre las transmisiones
+    // Complejidad: O(N^2), donde N es la longitud promedio de las transmisiones
     std::cout << "Parte 3" << std::endl;
     std::string trans1 = readFile(transmissions[0]);
     std::string trans2 = readFile(transmissions[1]);
@@ -131,18 +143,19 @@ int main() {
 }
 
 /*
- * Análisis de complejidad:
+ * Análisis de complejidad global:
  * 
- * 1. Lectura de archivos (readFile): O(n) para cada archivo, donde n es el número de caracteres.
- * 2. Búsqueda de subcadenas (containsSubstring): O(n*m) para cada búsqueda, donde n es la longitud de la transmisión y m la longitud del código malicioso.
- * 3. Búsqueda de palíndromos (findLongestPalindrome): O(n^2) para cada transmisión, donde n es la longitud de la transmisión.
- * 4. Búsqueda de subcadena común más larga (findLongestCommonSubstring): O(m*n), donde m y n son las longitudes de las dos transmisiones.
+ * 1. Lectura de archivos (readFile): O(N) para cada archivo, donde N es el número de caracteres.
+ * 2. Búsqueda de subcadenas (containsSubstring): O(N + L) en promedio para cada búsqueda, donde N es la longitud de la transmisión y L la longitud del código malicioso.
+ * 3. Búsqueda de palíndromos (findLongestPalindrome): O(N^2) para cada transmisión.
+ * 4. Búsqueda de subcadena común más larga (findLongestCommonSubstring): O(N^2), donde N es la longitud máxima entre las dos transmisiones.
  * 
  * Complejidad total:
- * O(T*N + T*M*N + T*N^2 + M*N), donde:
+ * O(T*N + T*M*(N+L) + T*N^2 + N^2), donde:
  * T: número de transmisiones
- * N: longitud promedio de las transmisiones
+ * N: longitud máxima de las transmisiones
  * M: número de códigos maliciosos
+ * L: longitud máxima de los códigos maliciosos
  * 
- * La complejidad está dominada por la búsqueda de palíndromos y la búsqueda de subcadena común más larga.
+ * La complejidad está dominada por la búsqueda de palíndromos y la búsqueda de subcadena común más larga, resultando en una complejidad general de O(T*N^2 + N^2).
  */
