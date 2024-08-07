@@ -1,20 +1,29 @@
 #pragma once
 
-#include <iostream>
 #include <vector>
+#include <list>
 #include <string>
-#include "Hash/sha3.h"
 
-class HashTable
-{
+template<typename K, typename V>
+class HashTable {
 private:
-  std::vector<std::string> table;
-  size_t table_size;
+    static const int INITIAL_SIZE = 10;
+    static const double LOAD_FACTOR = 0.80;
 
-  size_t keccak256(const std::string &key);
+    std::vector<std::list<std::pair<K, V>>> table;
+    int size;
+    int count;
+
+    int hash(const K& key) const;
+    void resize();
 
 public:
-  HashTable(size_t size);
-  void insert(const std::string &key, const std::string &value);
-  std::string get(const std::string &key);
+    HashTable();
+    void insert(const K& key, const V& value);
+    bool remove(const K& key);
+    bool get(const K& key, V& value) const;
+    bool update(const K& key, const V& value);
+    int getSize() const;
+    int getCount() const;
+    double getCurrentLoadFactor() const;
 };
