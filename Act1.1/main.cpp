@@ -82,8 +82,6 @@ void merge(std::vector<double>& arr, int left, int middle, int right) {
  * Mejor Caso: O(n log n) - cuando el vector ya está ordenado o casi ordenado
  * Caso Promedio: O(n log n)
  * Peor Caso: O(n log n) - cuando el vector está en orden inverso o desordenado aleatoriamente
- * 
- * Complejidad Espacial: O(n) debido al espacio auxiliar utilizado en el paso de fusión
  */
 void mergeSort(std::vector<double>& arr, int left, int right) {
     if (left >= right) {
