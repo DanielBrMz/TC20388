@@ -11,50 +11,25 @@ int pesosToCentavos(double pesos) {
     return static_cast<int>(std::round(pesos * 100));
 }
 
-/*
-Complejidad Temporal:
-- O(N * cambio), donde N es el número de denominaciones y cambio es la cantidad de cambio a dar en centavos.
-- Las ejecuciones subsiguientes podrían ser O(1) si el resultado está en caché, pero esto depende del patrón de uso.
-
-Complejidad Espacial:
-- O(cambio) para el vector dp.
-- O(N) para el vector resultado y la copia local de suministro.
-- O(K) para la HashTable, donde K es el número de resultados únicos almacenados.
-
-La optimización principal es usar un solo vector para dp en lugar de una matriz 2D,
-lo que reduce significativamente el uso de memoria.
-*/
 std::vector<int> calcularCambioDinamico(const std::vector<int>& denominacionesCentavos, int cambioCentavos, 
-                                        const std::vector<int>& suministroOriginal, HashTable<std::string, std::vector<int>>& cache) {
-    std::string key = std::to_string(cambioCentavos);
-    for (size_t i = 0; i < denominacionesCentavos.size(); ++i) {
-        key += "_" + std::to_string(denominacionesCentavos[i]) + ":" + std::to_string(suministroOriginal[i]);
-    }
-
-    std::vector<int> resultado;
-    if (cache.get(key, resultado)) {
-        return resultado;
-    }
-
-    // Crear una copia local de suministro que podemos modificar
-    std::vector<int> suministro = suministroOriginal;
-
+                                        std::vector<int>& suministro) {
     int N = denominacionesCentavos.size();
-    std::vector<int> dp(cambioCentavos + 1, std::numeric_limits<int>::max() - 1);
+    std::vector<int> dp(cambioCentavos + 1, std::numeric_limits<int>::max());
     std::vector<int> moneda(cambioCentavos + 1, -1);
     dp[0] = 0;
 
     for (int i = 0; i < N; ++i) {
         for (int j = denominacionesCentavos[i]; j <= cambioCentavos; ++j) {
-            if (dp[j - denominacionesCentavos[i]] != std::numeric_limits<int>::max() - 1 &&
-                dp[j - denominacionesCentavos[i]] + 1 < dp[j]) {
+            if (dp[j - denominacionesCentavos[i]] != std::numeric_limits<int>::max() &&
+                dp[j - denominacionesCentavos[i]] + 1 < dp[j] &&
+                suministro[i] > 0) {
                 dp[j] = dp[j - denominacionesCentavos[i]] + 1;
                 moneda[j] = i;
             }
         }
     }
 
-    resultado = std::vector<int>(N, 0);
+    std::vector<int> resultado(N, 0);
     int restante = cambioCentavos;
     while (restante > 0 && moneda[restante] != -1) {
         int i = moneda[restante];
@@ -67,15 +42,15 @@ std::vector<int> calcularCambioDinamico(const std::vector<int>& denominacionesCe
         }
     }
 
-    cache.insert(key, resultado);
     return resultado;
 }
 
-// Función principal
 int main() {
     int N;
     double P, Q;
     std::cin >> N;
+    std::cout << "Número de denominaciones: " << N << std::endl;
+
     std::vector<double> denominacionesPesos(N);
     std::vector<int> denominacionesCentavos(N);
     std::vector<int> suministro(N);
@@ -83,21 +58,28 @@ int main() {
     for (int i = 0; i < N; i++) {
         std::cin >> denominacionesPesos[i];
         denominacionesCentavos[i] = pesosToCentavos(denominacionesPesos[i]);
+        std::cout << "Denominación " << i << ": " << denominacionesPesos[i] << " pesos (" 
+                  << denominacionesCentavos[i] << " centavos)" << std::endl;
     }
 
     std::cin >> P >> Q;
+    std::cout << "Precio: " << P << " pesos, Pagado: " << Q << " pesos" << std::endl;
 
     for (int i = 0; i < N; i++) {
         std::cin >> suministro[i];
+        std::cout << "Suministro para denominación " << i << ": " << suministro[i] << std::endl;
     }
 
     int cambioCentavos = pesosToCentavos(Q - P);
-    HashTable<std::string, std::vector<int>> cache;
+    std::cout << "Cambio a dar: " << cambioCentavos << " centavos" << std::endl;
 
-    std::vector<int> resultado = calcularCambioDinamico(denominacionesCentavos, cambioCentavos, suministro, cache);
+    std::vector<int> resultado = calcularCambioDinamico(denominacionesCentavos, cambioCentavos, suministro);
 
+    std::cout << "Resultado final (número de monedas/billetes por denominación):" << std::endl;
     for (int i = 0; i < N; i++) {
-        std::cout << resultado[i] << std::endl;
+        if (resultado[i] > 0) {
+            std::cout << resultado[i] << " x " << denominacionesPesos[i] << " pesos" << std::endl;
+        }
     }
 
     return 0;
