@@ -1,19 +1,12 @@
 #include <iostream>
 #include <vector>
 #include <algorithm>
-#include <limits>
 #include <string>
-#include <cmath>
 #include <chrono>
 #include <functional>
+#include <cmath>
 #include "../Support/HashTable/HashTable.h"
 
-// Función para convertir pesos a centavos
-int pesosToCents(double pesos) {
-    return static_cast<int>(std::round(pesos * 100));
-}
-
-// Función para medir el tiempo de ejecución
 template<typename Func, typename... Args>
 double measureExecutionTime(Func func, Args&&... args) {
     auto start = std::chrono::high_resolution_clock::now();
@@ -23,63 +16,59 @@ double measureExecutionTime(Func func, Args&&... args) {
     return duration.count();
 }
 
-std::vector<int> calculateDynamicChange(const std::vector<int>& denominationsCents, int changeCents, 
-                                        std::vector<int>& supply, HashTable<std::string, std::vector<int>>& cache) {
-    // Clave para el caché
-    std::string key = std::to_string(changeCents);
-    for (size_t i = 0; i < denominationsCents.size(); ++i) {
-        key += "_" + std::to_string(denominationsCents[i]) + ":" + std::to_string(supply[i]);
+std::string createCacheKey(double change, const std::vector<double>& denominations, const std::vector<int>& supply) {
+    std::string key = std::to_string(change);
+    for (size_t i = 0; i < denominations.size(); ++i) {
+        key += "_" + std::to_string(denominations[i]) + ":" + std::to_string(supply[i]);
     }
+    return key;
+}
 
-    // Verificar si el resultado está en caché
+std::vector<int> calculateChange(const std::vector<double>& denominations, double change, 
+                                 std::vector<int>& supply, HashTable<std::string, std::vector<int>>& cache) {
+    // Round change to 2 decimal places to avoid floating-point precision issues
+    change = std::round(change * 100.0) / 100.0;
+    
+    // Create cache key
+    std::string key = createCacheKey(change, denominations, supply);
+
+    // Check cache
     std::vector<int> result;
     if (cache.get(key, result)) {
         return result;
     }
 
-    int N = denominationsCents.size();
+    int N = denominations.size();
     result = std::vector<int>(N, 0);
-    int remaining = changeCents;
 
-    // Solución lineal usando un enfoque voraz
-    for (int i = 0; i < N && remaining > 0; ++i) {
-        int count = std::min(remaining / denominationsCents[i], supply[i]);
-        result[i] = count;
-        remaining -= count * denominationsCents[i];
+    // Base case: if change is 0, return empty result
+    if (change < 1e-9) {
+        cache.insert(key, result);
+        return result;
     }
 
-    // Si no se pudo dar el cambio completo, optimizamos con programación dinámica
-    if (remaining > 0) {
-        std::vector<int> dp(changeCents + 1, std::numeric_limits<int>::max());
-        std::vector<int> coin(changeCents + 1, -1);
-        dp[0] = 0;
+    // Try to use each denomination
+    for (int i = 0; i < N; ++i) {
+        if (denominations[i] <= change && supply[i] > 0) {
+            // Use this denomination
+            supply[i]--;
+            std::vector<int> subResult = calculateChange(denominations, change - denominations[i], supply, cache);
+            supply[i]++; // Restore supply for backtracking
 
-        for (int i = 0; i < N; ++i) {
-            for (int j = denominationsCents[i]; j <= changeCents; ++j) {
-                if (dp[j - denominationsCents[i]] != std::numeric_limits<int>::max() &&
-                    dp[j - denominationsCents[i]] + 1 < dp[j] &&
-                    supply[i] > result[i]) {
-                    dp[j] = dp[j - denominationsCents[i]] + 1;
-                    coin[j] = i;
-                }
-            }
-        }
-
-        result = std::vector<int>(N, 0);
-        remaining = changeCents;
-        while (remaining > 0 && coin[remaining] != -1) {
-            int i = coin[remaining];
-            if (supply[i] > 0) {
+            // If a valid solution was found for the remaining change
+            if (subResult[N-1] != -1) {
+                result = subResult;
                 result[i]++;
-                supply[i]--;
-                remaining -= denominationsCents[i];
-            } else {
-                break;
+                
+                // Cache this sub-solution
+                cache.insert(key, result);
+                return result;
             }
         }
     }
 
-    // Almacenar el resultado en caché
+    // If no valid solution was found, cache this fact
+    result[N-1] = -1; // Use last element as a flag for invalid solution
     cache.insert(key, result);
     return result;
 }
@@ -89,13 +78,11 @@ int main() {
     double P, Q;
     std::cin >> N;
 
-    std::vector<double> denominationsPesos(N);
-    std::vector<int> denominationsCents(N);
+    std::vector<double> denominations(N);
     std::vector<int> supply(N);
 
     for (int i = 0; i < N; i++) {
-        std::cin >> denominationsPesos[i];
-        denominationsCents[i] = pesosToCents(denominationsPesos[i]);
+        std::cin >> denominations[i];
     }
 
     std::cin >> P >> Q;
@@ -104,31 +91,35 @@ int main() {
         std::cin >> supply[i];
     }
 
-    int changeCents = pesosToCents(Q - P);
+    double change = Q - P;
 
     HashTable<std::string, std::vector<int>> cache;
 
     std::vector<double> executionTimes;
-    std::vector<int> inputSizes;
+    std::vector<double> inputSizes;
 
-    // Ejecutamos el algoritmo varias veces para medir su comportamiento
+    // Run the algorithm multiple times to measure its behavior
     for (int i = 0; i < 5; ++i) {
         double executionTime = measureExecutionTime([&]() {
-            std::vector<int> result = calculateDynamicChange(denominationsCents, changeCents, supply, cache);
+            std::vector<int> result = calculateChange(denominations, change, supply, cache);
 
-            if (i == 0) {  // Solo imprimimos el resultado la primera vez
-                for (int j = 0; j < N; j++) {
-                    if (result[j] > 0) {
-                        std::cout << result[j] << " x " << denominationsPesos[j] << " pesos" << std::endl;
+            if (i == 0) {  // Only print the result the first time
+                if (result[N-1] == -1) {
+                    std::cout << "No solution found" << std::endl;
+                } else {
+                    for (int j = 0; j < N; j++) {
+                        if (result[j] > 0) {
+                            std::cout << result[j] << " x " << denominations[j] << " pesos" << std::endl;
+                        }
                     }
                 }
             }
         });
 
         executionTimes.push_back(executionTime);
-        inputSizes.push_back(changeCents * (i + 1));  // Simulamos un aumento en el tamaño de entrada
+        inputSizes.push_back(change * (i + 1));  // Simulate an increase in input size
 
-        std::cout << "Ejecucion " << i+1 << " - Tiempo: " << executionTime << " ms" << std::endl;
+        std::cout << "Execution " << i+1 << " - Time: " << executionTime << " ms" << std::endl;
     }
 
     return 0;
