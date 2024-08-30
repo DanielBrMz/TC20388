@@ -7,6 +7,19 @@
 #include <cmath>
 #include "../Support/HashTable/HashTable.h"
 
+/*
+    * Implementación de Programación Dinámica y Programación Voraz para calcular el cambio
+    * Nota: El programa espera que el archivo de texto tenga el formato correcto.
+    * 
+    * Autores: 
+      - Daniel Alfredo Barreras Meraz
+      - Yair Salvador Beltrán Ríos
+    * Matrículas:
+      - A01254805
+      - A01254673
+    * Fecha: 29 de agosto de 2024
+*/
+
 // Función para medir el tiempo de ejecución
 // Complejidad: O(1) - Tiempo constante para medir el tiempo
 template<typename Func, typename... Args>
@@ -18,9 +31,8 @@ double measureExecutionTime(Func func, Args&&... args) {
     return duration.count();
 }
 
-
 // Función principal para calcular el cambio
-// Complejidad: O(N) en el peor caso, donde N es el número de denominaciones
+// Complejidad: O(C * N) en el peor caso, donde C es el tamano del cambio y N es el número de denominaciones
 // Utilizando el Teorema Maestro: T(n) = aT(n/b) + f(n), donde a = 1, b > 1, f(n) = O(n)
 // Caso 3 del Teorema Maestro: T(n) = Θ(n log n)
 std::vector<int> calculateChange(const std::vector<double>& denominations, double change, 
@@ -83,9 +95,6 @@ std::vector<int> calculateChangeGreedy(const std::vector<double>& denominations,
     
     // Crear la clave de caché
     std::string key = std::to_string(change);
-    for (size_t i = 0; i < denominations.size(); ++i) {
-        key += "_" + std::to_string(supply[i]);
-    }
 
     // Verificar si la solución está en caché
     std::vector<int> result;
@@ -195,3 +204,52 @@ int main() {
 
     return 0;
 }
+
+/* Despues de hacer varias pruebas en el codigo nos dimos cuenta de que:
+    el algoritmo Greedy suele ser más rápido que el de backtracking, 
+    pero no garantiza la solución óptima en todos los casos.
+
+    Aquí hay algunas diferencias clave entre los enfoques Greedy y de backtracking:
+
+    1. Complejidad algorítmica:
+       - El algoritmo Greedy tiene una complejidad de O(N).
+       - El algoritmo de backtracking tiene una complejidad de O(C * N) en el peor caso.
+    2. Enfoque de toma de decisiones:
+       - Greedy toma decisiones localmente óptimas en cada paso, sin reconsiderar.
+       - Backtracking explora múltiples combinaciones, lo que puede llevar más tiempo.
+
+    3. Uso de memoria:
+       - Greedy utiliza menos memoria, ya que no necesita almacenar estados intermedios.
+       - Backtracking puede requerir más memoria debido a la recursión y almacenamiento de estados.
+
+    4. Recorrido del árbol de decisiones:
+       - Greedy sigue un único camino en el árbol de decisiones.
+       - Backtracking explora múltiples ramas, lo que aumenta el tiempo de ejecución.
+
+    5. Eficiencia en sistemas monetarios bien diseñados:
+       - Greedy suele encontrar la solución óptima rápidamente.
+       - Backtracking garantiza la optimizacion, pero a costa de explorar más posibilidades.
+
+    6. Impacto de la caché:
+       - Aunque ambos algoritmos usan caché, Greedy se beneficia más debido a su naturaleza.
+       - Backtracking puede tener un patrón de acceso a caché menos predecible.
+
+    7. Estructura de datos y operaciones:
+       - Greedy utiliza principalmente operaciones simples y acceso secuencial a datos.
+       - Backtracking involucra más operaciones complejas como la recursión.
+
+    8. Pruning (poda) en backtracking:
+       - Aunque el backtracking implementa poda, aún explora más posibilidades que Greedy.
+       - Greedy naturalmente 'poda' al tomar decisiones inmediatas sin retroceder.
+
+    9. Predictibilidad del flujo de ejecución:
+       - El flujo de Greedy es más predecible, lo que puede llevar a mejor optimización por parte del compilador.
+       - Backtracking tiene un flujo menos predecible debido a la naturaleza recursiva y las múltiples ramas.
+
+    10. Localidad de referencia:
+        - Greedy tiende a tener mejor localidad de referencia, aprovechando mejor la caché del procesador.
+        - Backtracking puede sufrir más fallos de caché debido a su naturaleza recursiva y no lineal.
+
+    Es importante notar que, aunque Greedy es generalmente más rápido, no siempre garantiza la solución óptima
+    en todos los casos posibles, especialmente en sistemas con restricciones complejas.
+    */
