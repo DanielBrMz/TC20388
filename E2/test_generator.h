@@ -11,101 +11,111 @@ class TestGenerator {
 private:
     std::mt19937 gen;
     
-    /*
-     * Elegí usar Mersenne Twister como generador de números aleatorios por:
-     * 1. Mayor calidad estadística que rand()
-     * 2. Período muy largo, ideal para generar muchos datos
-     * 3. Eficiencia en la generación de números
-     * 4. Resultados consistentes entre plataformas
-     */
+    // Método helper para generar matriz dispersa
+    std::vector<std::vector<std::pair<int, int>>> generateSparseMatrix(int size) {
+        std::uniform_int_distribution<> edgeDist(1, 100);
+        std::uniform_real_distribution<> sparseProb(0, 1);
+        
+        std::vector<std::vector<std::pair<int, int>>> adj(size);
+        size_t maxEdges = static_cast<size_t>(std::sqrt(size));
+        
+        // Aseguramos que el grafo esté conectado primero
+        for(int i = 0; i < size - 1; i++) {
+            int weight = edgeDist(gen);
+            adj[i].push_back(std::make_pair(i + 1, weight));
+            adj[i + 1].push_back(std::make_pair(i, weight));
+        }
+        
+        // Agregamos aristas adicionales de forma dispersa
+        for(int i = 0; i < size; i++) {
+            for(int j = 0; j < size; j++) {
+                if(i != j && sparseProb(gen) < 0.1 && 
+                   adj[i].size() < maxEdges) {
+                    int weight = edgeDist(gen);
+                    adj[i].push_back(std::make_pair(j, weight));
+                    adj[j].push_back(std::make_pair(i, weight));
+                }
+            }
+        }
+        
+        return adj;
+    }
     
 public:
     TestGenerator() : gen(std::random_device{}()) {}
     
     NetworkCase generateCase(int size) {
-        /*
-         * Elegí generar los casos de prueba con estas características por:
-         * 1. Distancias realistas para una ciudad (1-100 km)
-         * 2. Capacidades que reflejan variaciones significativas (100-1000)
-         * 3. Distribución uniforme de centrales (20% del total de colonias)
-         * 4. Coordenadas en un espacio manejable (0-1000)
-         */
-        
         NetworkCase testCase;
         testCase.numNeighborhoods = size;
         
-        // Configurar distribuciones para valores aleatorios
-        std::uniform_int_distribution<> distDist(1, 100);     // Distancias: 1-100 km
-        std::uniform_int_distribution<> capDist(100, 1000);   // Capacidades: 100-1000
-        std::uniform_int_distribution<> coordDist(0, 1000);   // Coordenadas: 0-1000
+        // Generamos una matriz dispersa para el grafo
+        auto sparseAdj = generateSparseMatrix(size);
         
-        // Generar matriz de distancias simétrica
+        // Convertimos a matriz de adyacencia
         testCase.distances = std::vector<std::vector<int>>(
-            size, std::vector<int>(size, 0));
+            size, std::vector<int>(size, std::numeric_limits<int>::max() / 2));
             
         for(int i = 0; i < size; i++) {
-            for(int j = i; j < size; j++) {
-                if(i == j) {
-                    testCase.distances[i][j] = 0;
-                } else {
-                    int dist = distDist(gen);
-                    testCase.distances[i][j] = dist;
-                    testCase.distances[j][i] = dist;
-                }
+            testCase.distances[i][i] = 0;
+            for(const auto& edge : sparseAdj[i]) {
+                testCase.distances[i][edge.first] = edge.second;
+                testCase.distances[edge.first][i] = edge.second;
             }
         }
         
-        // Generar matriz de capacidades
-        testCase.capacities = std::vector<std::vector<int>>(
-            size, std::vector<int>(size, 0));
-            
-        for(int i = 0; i < size; i++) {
-            for(int j = 0; j < size; j++) {
-                if(i != j) {
-                    testCase.capacities[i][j] = capDist(gen);
-                }
+        // Generamos capacidades similares a las distancias
+        testCase.capacities = testCase.distances;
+        
+        // Generamos centrales de forma distribuida
+        int numCentrals = std::min(20, size / 50);
+        std::uniform_int_distribution<> coordDist(0, 1000);
+        
+        // Distribuimos las centrales en una cuadrícula
+        int gridSize = static_cast<int>(std::sqrt(numCentrals));
+        int stepX = 1000 / gridSize;
+        int stepY = 1000 / gridSize;
+        
+        std::vector<Point> centroids;
+        for(int i = 0; i < gridSize && centroids.size() < numCentrals; i++) {
+            for(int j = 0; j < gridSize && centroids.size() < numCentrals; j++) {
+                int x = i * stepX + stepX/2 + coordDist(gen) % (stepX/4);
+                int y = j * stepY + stepY/2 + coordDist(gen) % (stepY/4);
+                centroids.push_back(Point(x, y));
             }
         }
         
-        // Generar centrales (20% del total de colonias)
-        int numCentrals = size/5;
-        for(int i = 0; i < numCentrals; i++) {
+        for(int i = 0; i < centroids.size(); i++) {
             char id = static_cast<char>('A' + (i % 26));
-            double x = coordDist(gen);
-            double y = coordDist(gen);
-            testCase.centrals.push_back(Central(id, x, y));
+            testCase.centrals.push_back(Central(id, centroids[i].x, centroids[i].y));
         }
         
         return testCase;
     }
     
     void saveToFile(const NetworkCase& testCase, const std::string& filename) {
-        std::ofstream file(filename);
+        std::ofstream file(filename.c_str()); // C++11 compatible
         if(!file.is_open()) {
             throw std::runtime_error("No se pudo crear el archivo de caso de prueba");
         }
         
         file << testCase.numNeighborhoods << "\n";
         
-        // Escribir matriz de distancias
+        // Escribir matriz de distancias de forma eficiente
         for(const auto& row : testCase.distances) {
             for(size_t j = 0; j < row.size(); ++j) {
                 file << row[j];
-                if(j < row.size() - 1) file << " ";
+                file.put(j < row.size() - 1 ? ' ' : '\n');
             }
-            file << "\n";
         }
         
         // Escribir matriz de capacidades
         for(const auto& row : testCase.capacities) {
             for(size_t j = 0; j < row.size(); ++j) {
                 file << row[j];
-                if(j < row.size() - 1) file << " ";
+                file.put(j < row.size() - 1 ? ' ' : '\n');
             }
-            file << "\n";
         }
         
-        // Escribir información de centrales
         file << testCase.centrals.size() << "\n";
         for(const auto& central : testCase.centrals) {
             file << central.neighborhood << " " 
@@ -117,65 +127,50 @@ public:
     }
     
     NetworkCase loadFromFile(const std::string& filename) {
-        NetworkCase testCase;
-        std::ifstream file(filename);
-        
+        std::ifstream file(filename.c_str()); // C++11 compatible
         if(!file.is_open()) {
-            throw std::runtime_error("No se pudo abrir el archivo de caso de prueba");
+            throw std::runtime_error("No se pudo abrir el archivo");
         }
         
-        // Leer número de colonias
+        NetworkCase testCase;
         file >> testCase.numNeighborhoods;
+        
         if(file.fail() || testCase.numNeighborhoods <= 0) {
-            throw std::runtime_error("Número de colonias inválido en archivo");
+            throw std::runtime_error("Número de colonias inválido");
         }
         
-        // Leer matriz de distancias
-        testCase.distances = readMatrix(file, testCase.numNeighborhoods);
+        // Leer matrices de forma eficiente
+        auto readMatrix = [&file](int size) {
+            std::vector<std::vector<int>> matrix(
+                size, std::vector<int>(size));
+            for(int i = 0; i < size; i++) {
+                for(int j = 0; j < size; j++) {
+                    if(!(file >> matrix[i][j])) {
+                        throw std::runtime_error("Error al leer matriz");
+                    }
+                }
+            }
+            return matrix;
+        };
         
-        // Leer matriz de capacidades
-        testCase.capacities = readMatrix(file, testCase.numNeighborhoods);
+        testCase.distances = readMatrix(testCase.numNeighborhoods);
+        testCase.capacities = readMatrix(testCase.numNeighborhoods);
         
-        // Leer centrales
         int numCentrals;
         file >> numCentrals;
         
+        testCase.centrals.reserve(numCentrals);
         for(int i = 0; i < numCentrals; i++) {
             char id;
             double x, y;
-            file >> id >> x >> y;
-            
-            if(file.fail()) {
-                throw std::runtime_error("Error al leer datos de central " + 
-                                       std::to_string(i + 1));
+            if(!(file >> id >> x >> y)) {
+                throw std::runtime_error("Error al leer central " + 
+                                       std::to_string(i));
             }
-            
             testCase.centrals.push_back(Central(id, x, y));
         }
         
-        file.close();
         return testCase;
-    }
-    
-private:
-    std::vector<std::vector<int>> readMatrix(std::ifstream& file, int size) {
-        std::vector<std::vector<int>> matrix(size, std::vector<int>(size));
-        
-        for(int i = 0; i < size; i++) {
-            for(int j = 0; j < size; j++) {
-                file >> matrix[i][j];
-                if(file.fail()) {
-                    throw std::runtime_error("Error al leer matriz en posición (" + 
-                                           std::to_string(i) + "," + 
-                                           std::to_string(j) + ")");
-                }
-                if(matrix[i][j] < 0) {
-                    throw std::runtime_error("Valor negativo no permitido en matriz");
-                }
-            }
-        }
-        
-        return matrix;
     }
 };
 
