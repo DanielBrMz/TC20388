@@ -73,6 +73,7 @@
     "variant": "cpp",
     "climits": "cpp",
     "any": "cpp",
-    "complex": "cpp"
+    "complex": "cpp",
+    "queue": "cpp"
   }
 }
