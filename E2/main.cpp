@@ -287,7 +287,7 @@ char findNearestCentral(const std::vector<Central>& centrals,
 int main() {
     try {
         // Abrir y validar archivo de entrada
-        std::ifstream file("input.txt");
+        std::ifstream file("in.txt");
         if(!file.is_open()) {
             throw std::runtime_error("No se pudo abrir el archivo de entrada");
         }
