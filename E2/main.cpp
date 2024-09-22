@@ -77,7 +77,7 @@ std::vector<std::pair<char,char>> findOptimalCabling(
      *    representados como matriz de adyacencia, común en redes de fibra óptica
      *    donde la mayoría de las colonias están directamente conectadas.
      */    
-    int numNeighborhoods = distances.size();
+    size_t numNeighborhoods = distances.size();
     std::vector<bool> visited(numNeighborhoods, false);
     std::vector<int> minCost(numNeighborhoods, std::numeric_limits<int>::max());
     std::vector<int> predecessor(numNeighborhoods, -1);
@@ -118,7 +118,7 @@ std::vector<std::pair<char,char>> findOptimalCabling(
         visited[currentNode] = true;
         
         // Procesar vecinos
-        for(int next = 0; next < numNeighborhoods; next++) {
+        for(size_t next = 0; next < numNeighborhoods; next++) {
             // Validar índices y valores
             if(next == currentNode) continue;
             if(distances[currentNode][next] == std::numeric_limits<int>::max() / 2) continue;
@@ -135,7 +135,7 @@ std::vector<std::pair<char,char>> findOptimalCabling(
     std::vector<std::pair<char,char>> cabling;
     cabling.reserve(numNeighborhoods - 1);
     
-    for(int i = 1; i < numNeighborhoods; i++) {
+    for(size_t i = 1; i < numNeighborhoods; i++) { 
         if(predecessor[i] != -1) {
             char from = static_cast<char>('A' + predecessor[i]);
             char to = static_cast<char>('A' + i);
@@ -173,14 +173,14 @@ std::vector<char> findDeliveryRoute(
      *    la planificación de rutas en tiempo real.
      */
     
-    int numNeighborhoods = distances.size();
+    size_t numNeighborhoods = distances.size(); 
     std::vector<bool> visited(numNeighborhoods, false);
     std::vector<char> route;
     route.reserve(numNeighborhoods + 1);
     
     route.push_back('A');
     visited[0] = true;
-    int currentNeighborhood = 0;
+    size_t currentNeighborhood = 0;
     
     // Estructura para mantener candidatos ordenados
     struct Candidate {
@@ -199,13 +199,14 @@ std::vector<char> findDeliveryRoute(
         candidates.clear();
         
         // Procesamos en chunks para mejor uso de caché
-        static const int CHUNK_SIZE = 64;
-        for(int start = 0; start < numNeighborhoods; start += CHUNK_SIZE) {
-            int end = std::min(start + CHUNK_SIZE, numNeighborhoods);
-            for(int i = start; i < end; i++) {
+        static const size_t CHUNK_SIZE = 64;  // Cambio a size_t
+        for(size_t start = 0; start < numNeighborhoods; start += CHUNK_SIZE) {
+            size_t end = std::min(start + CHUNK_SIZE, numNeighborhoods);
+            for(size_t i = start; i < end; i++) {
                 if(!visited[i]) {
                     candidates.push_back(
-                        Candidate(i, distances[currentNeighborhood][i]));
+                        Candidate(static_cast<int>(i),  // Conversión explícita
+                                distances[currentNeighborhood][i]));
                 }
             }
         }

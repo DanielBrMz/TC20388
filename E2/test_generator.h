@@ -67,24 +67,25 @@ public:
         testCase.capacities = testCase.distances;
         
         // Generamos centrales de forma distribuida
-        int numCentrals = std::min(20, size / 50);
+        size_t numCentrals = static_cast<size_t>(std::min(20, size / 50));
+        std::vector<Point> centroids;
         std::uniform_int_distribution<> coordDist(0, 1000);
+        centroids.reserve(numCentrals);
         
         // Distribuimos las centrales en una cuadrícula
-        int gridSize = static_cast<int>(std::sqrt(numCentrals));
+        size_t gridSize = static_cast<size_t>(std::sqrt(numCentrals));
         int stepX = 1000 / gridSize;
         int stepY = 1000 / gridSize;
         
-        std::vector<Point> centroids;
-        for(int i = 0; i < gridSize && centroids.size() < numCentrals; i++) {
-            for(int j = 0; j < gridSize && centroids.size() < numCentrals; j++) {
+        for(size_t i = 0; i < gridSize && centroids.size() < numCentrals; i++) {
+            for(size_t j = 0; j < gridSize && centroids.size() < numCentrals; j++) {
                 int x = i * stepX + stepX/2 + coordDist(gen) % (stepX/4);
                 int y = j * stepY + stepY/2 + coordDist(gen) % (stepY/4);
                 centroids.push_back(Point(x, y));
             }
         }
         
-        for(int i = 0; i < centroids.size(); i++) {
+        for(size_t i = 0; i < centroids.size(); i++) {
             char id = static_cast<char>('A' + (i % 26));
             testCase.centrals.push_back(Central(id, centroids[i].x, centroids[i].y));
         }
