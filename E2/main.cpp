@@ -1,11 +1,12 @@
 #include <iostream>
-#include <fstream>
+#include <iomanip>
+#include <string>
 #include <vector>
 #include <queue>
 #include <limits>
 #include <algorithm>
-#include <cmath>
-#include <string>
+#include <stdexcept>
+#include <functional>
 #include "data_structures.h"
 #include "test_generator.h"
 
@@ -60,7 +61,7 @@ std::vector<std::vector<int>> readAdjacencyMatrix(std::ifstream& file, int numNe
 // Función para encontrar el árbol de expansión mínima
 // Algoritmo: Prim con cola de prioridad optimizada
 // Complejidad: O(E log V), donde E es número de aristas y V número de vértices
-std::vector<std::pair<char,char>> findOptimalCabling(
+std::vector<std::pair<std::string, std::string>> findOptimalCabling(
     const std::vector<std::vector<int>>& distances) {
     /*
      * Elegí implementar esta versión optimizada de Prim por varias razones clave:
@@ -76,85 +77,83 @@ std::vector<std::pair<char,char>> findOptimalCabling(
      * 5. Esta implementación es particularmente eficiente para grafos densos
      *    representados como matriz de adyacencia, común en redes de fibra óptica
      *    donde la mayoría de las colonias están directamente conectadas.
-     */    
+     */        
     size_t numNeighborhoods = distances.size();
+    
+    // Validación de entrada
+    if (distances.empty() || distances[0].size() != numNeighborhoods) {
+        throw std::invalid_argument("Matriz de distancias inválida");
+    }
+    
+    // Estructuras de datos optimizadas
     std::vector<bool> visited(numNeighborhoods, false);
     std::vector<int> minCost(numNeighborhoods, std::numeric_limits<int>::max());
     std::vector<int> predecessor(numNeighborhoods, -1);
     
-    // Custom comparator para el heap
-    struct HeapNode {
-        int cost;
-        int node;
-        
-        HeapNode(int c, int n) : cost(c), node(n) {}
-        
-        // Cambiado para manejar comparaciones de manera más segura
-        bool operator>(const HeapNode& other) const {
-            if(cost == other.cost) {
-                return node > other.node;
-            }
-            return cost > other.cost;
-        }
-    };
-    
-    // Usar priority_queue en lugar de vector con heap manual
+    // Cola de prioridad optimizada
+    using HeapNode = std::pair<int, size_t>; // {costo, nodo}
     std::priority_queue<HeapNode, 
                        std::vector<HeapNode>, 
                        std::greater<HeapNode>> pq;
     
-    // Inicializar con el primer nodo
+    // Inicialización
     minCost[0] = 0;
-    pq.push(HeapNode(0, 0));
+    pq.push({0, 0});
     
-    while(!pq.empty()) {
-        int currentNode = pq.top().node;
+    while (!pq.empty()) {
+        size_t currentNode = pq.top().second;
         pq.pop();
         
-        if(visited[currentNode]) {
-            continue;
-        }
-        
+        if (visited[currentNode]) continue;
         visited[currentNode] = true;
         
-        // Procesar vecinos
-        for(size_t next = 0; next < numNeighborhoods; next++) {
-            // Validar índices y valores
-            if(next == currentNode) continue;
-            if(distances[currentNode][next] == std::numeric_limits<int>::max() / 2) continue;
+        // Procesar vecinos en bloques
+        static const size_t BLOCK_SIZE = 64;
+        for (size_t start = 0; start < numNeighborhoods; start += BLOCK_SIZE) {
+            size_t end = std::min(start + BLOCK_SIZE, numNeighborhoods);
             
-            if(!visited[next] && distances[currentNode][next] < minCost[next]) {
-                predecessor[next] = currentNode;
-                minCost[next] = distances[currentNode][next];
-                pq.push(HeapNode(minCost[next], next));
+            for (size_t next = start; next < end; next++) {
+                if (next == currentNode) continue;
+                if (distances[currentNode][next] == std::numeric_limits<int>::max() / 2) continue;
+                
+                if (!visited[next] && distances[currentNode][next] < minCost[next]) {
+                    predecessor[next] = static_cast<int>(currentNode);
+                    minCost[next] = distances[currentNode][next];
+                    pq.push({minCost[next], next});
+                }
             }
         }
     }
     
     // Construir resultado
-    std::vector<std::pair<char,char>> cabling;
-    cabling.reserve(numNeighborhoods - 1);
+    std::vector<std::pair<std::string, std::string>> result;
+    result.reserve(numNeighborhoods - 1);
     
-    for(size_t i = 1; i < numNeighborhoods; i++) { 
-        if(predecessor[i] != -1) {
-            char from = static_cast<char>('A' + predecessor[i]);
-            char to = static_cast<char>('A' + i);
-            cabling.push_back(std::make_pair(from, to));
+    for (size_t i = 1; i < numNeighborhoods; i++) {
+        if (predecessor[i] != -1) {
+            std::string from, to;
+            if (numNeighborhoods <= 26) {
+                from = std::string(1, static_cast<char>('A' + predecessor[i]));
+                to = std::string(1, static_cast<char>('A' + i));
+            } else {
+                from = std::to_string(predecessor[i]);
+                to = std::to_string(i);
+            }
+            result.push_back({std::move(from), std::move(to)});
         }
     }
     
-    // Validar el resultado
-    if(cabling.size() != numNeighborhoods - 1) {
+    if (result.size() != numNeighborhoods - 1) {
         throw std::runtime_error("Error: El grafo no es conexo");
     }
     
-    return cabling;
+    return result;
 }
 
 // Función para encontrar la ruta del repartidor
 // Algoritmo: Nearest Neighbor optimizado con procesamiento por lotes
 // Complejidad: O(n²), donde n es el número de colonias
-std::vector<char> findDeliveryRoute(
+std::vector<std::string> findDeliveryRoute(
     const std::vector<std::vector<int>>& distances) {
     /*
      * Esta implementación optimizada del algoritmo Nearest Neighbor fue elegida
@@ -172,59 +171,147 @@ std::vector<char> findDeliveryRoute(
      *    solución y eficiencia computacional, especialmente importante para
      *    la planificación de rutas en tiempo real.
      */
-    
-    size_t numNeighborhoods = distances.size(); 
-    std::vector<bool> visited(numNeighborhoods, false);
-    std::vector<char> route;
-    route.reserve(numNeighborhoods + 1);
-    
-    route.push_back('A');
-    visited[0] = true;
-    size_t currentNeighborhood = 0;
-    
-    // Estructura para mantener candidatos ordenados
-    struct Candidate {
-        int node;
-        int distance;
-        Candidate(int n, int d) : node(n), distance(d) {}
-        bool operator<(const Candidate& other) const {
-            return distance < other.distance;
-        }
-    };
-    
-    std::vector<Candidate> candidates;
-    candidates.reserve(numNeighborhoods);
-    
-    while(route.size() < numNeighborhoods) {
-        candidates.clear();
         
-        // Procesamos en chunks para mejor uso de caché
-        static const size_t CHUNK_SIZE = 64;  // Cambio a size_t
-        for(size_t start = 0; start < numNeighborhoods; start += CHUNK_SIZE) {
-            size_t end = std::min(start + CHUNK_SIZE, numNeighborhoods);
-            for(size_t i = start; i < end; i++) {
-                if(!visited[i]) {
-                    candidates.push_back(
-                        Candidate(static_cast<int>(i),  // Conversión explícita
-                                distances[currentNeighborhood][i]));
+    const size_t numNeighborhoods = distances.size();
+    const int INF = 1073741823; // Valor usado para representar infinito
+    
+    // Validación de entrada
+    if (distances.empty() || distances[0].size() != numNeighborhoods) {
+        throw std::invalid_argument("Matriz de distancias inválida");
+    }
+    
+    // Estructuras para el algoritmo
+    std::vector<bool> visited(numNeighborhoods, false);
+    std::vector<size_t> currentPath;
+    currentPath.reserve(numNeighborhoods + 1);
+    
+    // Vector para almacenar el grado de cada nodo
+    std::vector<int> degree(numNeighborhoods, 0);
+    for (size_t i = 0; i < numNeighborhoods; i++) {
+        for (size_t j = 0; j < numNeighborhoods; j++) {
+            if (distances[i][j] != INF) {
+                degree[i]++;
+            }
+        }
+    }
+    
+    // Encontrar un nodo inicial con buen grado de conectividad
+    size_t startNode = 0;
+    int maxDegree = degree[0];
+    for (size_t i = 1; i < numNeighborhoods; i++) {
+        if (degree[i] > maxDegree) {
+            maxDegree = degree[i];
+            startNode = i;
+        }
+    }
+    
+    currentPath.push_back(startNode);
+    visited[startNode] = true;
+    
+    // Función para encontrar el siguiente nodo más cercano alcanzable
+    auto findNextNode = [&](size_t current) -> int {
+        int bestDist = INF;
+        int bestNode = -1;
+        
+        // Primero intentar encontrar el nodo más cercano no visitado
+        for (size_t i = 0; i < numNeighborhoods; i++) {
+            if (!visited[i] && distances[current][i] != INF && distances[current][i] < bestDist) {
+                bestDist = distances[current][i];
+                bestNode = i;
+            }
+        }
+        
+        // Si no encontramos un nodo directamente conectado, buscar a través de nodos intermedios
+        if (bestNode == -1) {
+            for (size_t i = 0; i < numNeighborhoods; i++) {
+                if (!visited[i]) {
+                    // Buscar el camino más corto a través de nodos ya visitados
+                    for (size_t j = 0; j < numNeighborhoods; j++) {
+                        if (visited[j] && j != current && 
+                            distances[current][j] != INF && distances[j][i] != INF) {
+                            int totalDist = distances[current][j] + distances[j][i];
+                            if (totalDist < bestDist) {
+                                bestDist = totalDist;
+                                bestNode = i;
+                            }
+                        }
+                    }
                 }
             }
         }
         
-        if(candidates.empty()) break;
+        return bestNode;
+    };
+    
+    // Construir el camino
+    while (currentPath.size() < numNeighborhoods) {
+        int nextNode = findNextNode(currentPath.back());
         
-        // Encontramos el mejor candidato
-        auto bestCandidate = std::min_element(
-            candidates.begin(), candidates.end());
-            
-        currentNeighborhood = bestCandidate->node;
-        visited[currentNeighborhood] = true;
-        route.push_back(static_cast<char>('A' + currentNeighborhood));
+        if (nextNode == -1) {
+            // Si no encontramos siguiente nodo, tomar el primer no visitado disponible
+            for (size_t i = 0; i < numNeighborhoods; i++) {
+                if (!visited[i]) {
+                    nextNode = i;
+                    break;
+                }
+            }
+        }
+        
+        if (nextNode == -1) {
+            throw std::runtime_error("No se pudo completar la ruta");
+        }
+        
+        currentPath.push_back(nextNode);
+        visited[nextNode] = true;
     }
     
-    route.push_back('A');
-    return route;
+    // Intentar cerrar el ciclo
+    bool canClose = false;
+    size_t bestLast = currentPath.back();
+    
+    // Buscar un nodo final que pueda conectar de vuelta al inicio
+    for (size_t i = currentPath.size() - 1; i > 0; i--) {
+        if (distances[currentPath[i]][startNode] != INF) {
+            bestLast = currentPath[i];
+            canClose = true;
+            break;
+        }
+    }
+    
+    if (!canClose) {
+        // Si no podemos cerrar directamente, buscar un camino indirecto
+        for (size_t i = 0; i < numNeighborhoods; i++) {
+            if (distances[bestLast][i] != INF && distances[i][startNode] != INF) {
+                currentPath.push_back(i);
+                canClose = true;
+                break;
+            }
+        }
+    }
+    
+    if (!canClose) {
+        throw std::runtime_error("No se puede encontrar un ciclo hamiltoniano");
+    }
+    
+    // Agregar el nodo inicial para cerrar el ciclo
+    currentPath.push_back(startNode);
+    
+    // Convertir a formato de salida
+    std::vector<std::string> result;
+    result.reserve(currentPath.size());
+    
+    for (size_t node : currentPath) {
+        if (numNeighborhoods <= 26) {
+            result.push_back(std::string(1, static_cast<char>('A' + node)));
+        } else {
+            result.push_back(std::to_string(node));
+        }
+    }
+    
+    return result;
 }
+
+
 
 // Función para calcular el flujo máximo de información
 // Algoritmo: Ford-Fulkerson con BFS (Edmonds-Karp)
@@ -330,113 +417,118 @@ char findNearestCentral(const std::vector<Central>& centrals,
 }
 
 int main() {
-    try {        
-        // Configuración inicial
+    try {
         TestGenerator generator;
         NetworkCase networkData;
-        bool useTestGenerator = true;
         
-        if(useTestGenerator) {
-            // Solicitar tamaño del caso de prueba
-            int size;
-            std::cout << "Ingrese el número de colonias: ";
-            std::cin >> size;
-            
-            if(size <= 0) {
-                throw std::runtime_error("Número de colonias debe ser positivo");
-            }
-            
-            // Generar caso de prueba
-            std::cout << "\nGenerando caso de prueba...\n";
-            networkData = generator.generateCase(size);
-            
-            // Convertir a representación dispersa para grandes conjuntos
-            if(size > 1000) {
-                std::cout << "Convirtiendo a representación dispersa...\n";
-                auto sparseGraph = networkData.toSparseGraph();
-                
-                // Verificar si la conversión preserva la conectividad
-                if(!networkData.isValid()) {
-                    throw std::runtime_error("Error en conversión a grafo disperso");
-                }
-                
-                // Actualizar matrices con representación dispersa
-                networkData.distances = sparseGraph.toAdjacencyMatrix();
-            }
-            
-            std::cout << "Guardando caso de prueba...\n";
-            generator.saveToFile(networkData, "generated_test.txt");
-            
-        } else {
-            std::cout << "Leyendo desde archivo de entrada...\n";
-            networkData = generator.loadFromFile("in.txt");
+        // Solicitar tamaño
+        int size;
+        std::cout << "Ingrese el número de colonias: ";
+        std::cin >> size;
+        
+        if (size <= 0 || size > 10000) {
+            throw std::runtime_error("Número de colonias inválido (debe estar entre 1 y 10000)");
         }
         
-        // Verificar validez del caso de prueba
-        if(!networkData.isValid()) {
-            throw std::runtime_error("Caso de prueba inválido");
+        // Generar caso de prueba
+        std::cout << "\nGenerando caso de prueba...\n";
+        networkData = generator.generateCase(size);
+        
+        // Optimizar para casos grandes
+        if (size > 1000) {
+            std::cout << "Optimizando representación para caso grande...\n";
+            auto sparseGraph = networkData.toSparseGraph();
+            if (!networkData.isValid()) {
+                throw std::runtime_error("Error en conversión a grafo disperso");
+            }
+            networkData.distances = sparseGraph.toAdjacencyMatrix();
         }
         
-        // Mostrar información del caso
+        std::cout << "Guardando caso de prueba...\n";
+        generator.saveToFile(networkData, "generated_test.txt");
+        
+        // Mostrar información
         std::cout << "\nProcesando red con " << networkData.numNeighborhoods 
                  << " colonias\n";
         std::cout << "Densidad de conexiones: " 
+                 << std::fixed << std::setprecision(2) 
                  << networkData.calculateDensity() << "%\n\n";
         
-        // 1. Calcular y mostrar el cableado óptimo
+        // 1. Cableado óptimo
         std::cout << "1. Calculando cableado óptimo de fibra óptica...\n";
-        auto cabling = findOptimalCabling(networkData.distances);
+        const auto cabling = findOptimalCabling(networkData.distances);
         
-        // Mostrar resultados del cableado
         int totalCost = 0;
         std::cout << "Conexiones: ";
-        for(const auto& connection : cabling) {
+        for (const auto& connection : cabling) {
             std::cout << "(" << connection.first << "," 
                      << connection.second << ") ";
-            int i = connection.first - 'A';
-            int j = connection.second - 'A';
+            
+            int i, j;
+            if (networkData.numNeighborhoods <= 26) {
+                i = connection.first[0] - 'A';
+                j = connection.second[0] - 'A';
+            } else {
+                i = std::stoi(connection.first);
+                j = std::stoi(connection.second);
+            }
             totalCost += networkData.distances[i][j];
         }
         std::cout << "\nCosto total: " << totalCost << " kilómetros\n\n";
         
-        // 2. Calcular y mostrar la ruta del repartidor
+        // 2. Ruta del repartidor
         std::cout << "2. Calculando ruta óptima del repartidor...\n";
-        auto route = findDeliveryRoute(networkData.distances);
+        const auto deliveryRoute = findDeliveryRoute(networkData.distances);
         
-        // Mostrar resultados de la ruta
         std::cout << "Secuencia: ";
         int totalDistance = 0;
-        for(size_t i = 0; i < route.size(); ++i) {
-            std::cout << route[i];
-            if(i < route.size() - 1) {
+        for (size_t i = 0; i < deliveryRoute.size(); ++i) {
+            std::cout << deliveryRoute[i];
+            if (i < deliveryRoute.size() - 1) {
                 std::cout << " -> ";
-                int from = route[i] - 'A';
-                int to = route[i + 1] - 'A';
+                int from, to;
+                if (networkData.numNeighborhoods <= 26) {
+                    from = deliveryRoute[i][0] - 'A';
+                    to = deliveryRoute[i + 1][0] - 'A';
+                } else {
+                    from = std::stoi(deliveryRoute[i]);
+                    to = std::stoi(deliveryRoute[i + 1]);
+                }
                 totalDistance += networkData.distances[from][to];
             }
         }
         std::cout << "\nDistancia total: " << totalDistance << " kilómetros\n\n";
+
         
-        // 3. Calcular y mostrar el flujo máximo
+        // 3. Flujo máximo
         std::cout << "3. Calculando flujo máximo de información...\n";
-        int maxFlow = calculateMaxFlow(networkData.capacities);
-        std::cout << "Desde colonia A hasta " 
-                 << static_cast<char>('A' + networkData.numNeighborhoods - 1)
-                 << "\nFlujo máximo: " << maxFlow << " unidades\n\n";
+        auto capacitiesCopy = networkData.capacities; // Evitar modificar original
+        int maxFlow = calculateMaxFlow(capacitiesCopy);
         
-        // 4. Procesar ubicaciones para centrales
+        std::cout << "Desde colonia ";
+        if (networkData.numNeighborhoods <= 26) {
+            std::cout << 'A' << " hasta " 
+                     << static_cast<char>('A' + networkData.numNeighborhoods - 1);
+        } else {
+            std::cout << "0 hasta " 
+                     << (networkData.numNeighborhoods - 1);
+        }
+        std::cout << "\nFlujo máximo: " << maxFlow << " unidades\n\n";
+        
+        // 4. Procesamiento de centrales
         std::cout << "4. Procesando ubicaciones y centrales...\n";
         std::cout << "Centrales disponibles: " << networkData.centrals.size() 
                  << "\n\n";
         
         // Mostrar información de centrales
-        for(const auto& central : networkData.centrals) {
+        std::cout << std::fixed << std::setprecision(2);
+        for (const auto& central : networkData.centrals) {
             std::cout << "Central " << central.neighborhood 
                      << ": (" << central.x << ", " << central.y << ")\n";
         }
         
         // Procesar ubicaciones de ejemplo
-        std::vector<Point> testLocations = {
+        const std::vector<Point> testLocations = {
             Point(25.0, 30.0),
             Point(15.0, 15.0),
             Point(40.0, 35.0),
@@ -444,7 +536,7 @@ int main() {
         };
         
         std::cout << "\nAsignaciones de prueba:\n";
-        for(const auto& location : testLocations) {
+        for (const auto& location : testLocations) {
             char nearest = findNearestCentral(networkData.centrals, location);
             std::cout << "(" << location.x << ", " << location.y 
                      << ") -> Central " << nearest << "\n";
@@ -452,10 +544,10 @@ int main() {
         
         std::cout << "\nProcesamiento completado exitosamente.\n";
         
-    } catch(const std::exception& e) {
+    } catch (const std::exception& e) {
         std::cerr << "\nError: " << e.what() << "\n";
         return 1;
-    } catch(...) {
+    } catch (...) {
         std::cerr << "\nError desconocido\n";
         return 1;
     }

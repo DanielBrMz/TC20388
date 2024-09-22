@@ -11,47 +11,61 @@ class TestGenerator {
 private:
     std::mt19937 gen;
     
-    // Método helper para generar matriz dispersa
     std::vector<std::vector<std::pair<int, int>>> generateSparseMatrix(int size) {
         std::uniform_int_distribution<> edgeDist(1, 100);
         std::uniform_real_distribution<> sparseProb(0, 1);
         
         std::vector<std::vector<std::pair<int, int>>> adj(size);
-        size_t maxEdges = static_cast<size_t>(std::sqrt(size));
         
-        // Aseguramos que el grafo esté conectado primero
-        for(int i = 0; i < size - 1; i++) {
+        // Crear un ciclo hamiltoniano base garantizado
+        for (int i = 0; i < size; i++) {
             int weight = edgeDist(gen);
-            adj[i].push_back(std::make_pair(i + 1, weight));
-            adj[i + 1].push_back(std::make_pair(i, weight));
+            int next = (i + 1) % size;
+            adj[i].push_back({next, weight});
+            adj[next].push_back({i, weight});
+            
+            // Agregar algunas conexiones cruzadas para mejor conectividad
+            if (i < size - 2) {
+                weight = edgeDist(gen);
+                int cross = (i + 2) % size;
+                adj[i].push_back({cross, weight});
+                adj[cross].push_back({i, weight});
+            }
         }
         
-        // Agregamos aristas adicionales de forma dispersa
-        for(int i = 0; i < size; i++) {
-            for(int j = 0; j < size; j++) {
-                if(i != j && sparseProb(gen) < 0.1 && 
-                   adj[i].size() < maxEdges) {
+        // Agregar aristas adicionales con probabilidad controlada
+        double baseProbability = 5.0 / size; // Ajustar según necesidad
+        
+        for (int i = 0; i < size; i++) {
+            for (int j = i + 3; j < size; j++) {
+                if (sparseProb(gen) < baseProbability) {
                     int weight = edgeDist(gen);
-                    adj[i].push_back(std::make_pair(j, weight));
-                    adj[j].push_back(std::make_pair(i, weight));
+                    adj[i].push_back({j, weight});
+                    adj[j].push_back({i, weight});
                 }
             }
         }
         
         return adj;
     }
+
     
 public:
     TestGenerator() : gen(std::random_device{}()) {}
     
     NetworkCase generateCase(int size) {
+        // Validar tamaño de entrada
+        if (size <= 0) {
+            throw std::invalid_argument("El tamaño debe ser positivo");
+        }
+        
         NetworkCase testCase;
         testCase.numNeighborhoods = size;
         
-        // Generamos una matriz dispersa para el grafo
+        // Generar matriz dispersa
         auto sparseAdj = generateSparseMatrix(size);
         
-        // Convertimos a matriz de adyacencia
+        // Convertir a matriz de adyacencia
         testCase.distances = std::vector<std::vector<int>>(
             size, std::vector<int>(size, std::numeric_limits<int>::max() / 2));
             
@@ -63,31 +77,34 @@ public:
             }
         }
         
-        // Generamos capacidades similares a las distancias
+        // Generar capacidades
         testCase.capacities = testCase.distances;
         
-        // Generamos centrales de forma distribuida
-        size_t numCentrals = static_cast<size_t>(std::min(20, size / 50));
-        std::vector<Point> centroids;
+        // Calcular número de centrales
+        // Asegurar al menos 1 central y evitar división por cero
+        size_t numCentrals = std::max(1, std::min(20, size / std::max(1, 50)));
+        
+        // Generar centrales
         std::uniform_int_distribution<> coordDist(0, 1000);
-        centroids.reserve(numCentrals);
         
-        // Distribuimos las centrales en una cuadrícula
-        size_t gridSize = static_cast<size_t>(std::sqrt(numCentrals));
-        int stepX = 1000 / gridSize;
-        int stepY = 1000 / gridSize;
+        // Calcular tamaño de la cuadrícula
+        // Asegurar que gridSize sea al menos 1
+        size_t gridSize = std::max(1ul, static_cast<size_t>(std::sqrt(numCentrals)));
+        int stepX = 1000 / std::max(1ul, gridSize);
+        int stepY = 1000 / std::max(1ul, gridSize);
         
-        for(size_t i = 0; i < gridSize && centroids.size() < numCentrals; i++) {
-            for(size_t j = 0; j < gridSize && centroids.size() < numCentrals; j++) {
-                int x = i * stepX + stepX/2 + coordDist(gen) % (stepX/4);
-                int y = j * stepY + stepY/2 + coordDist(gen) % (stepY/4);
-                centroids.push_back(Point(x, y));
+        for(size_t i = 0; i < gridSize && testCase.centrals.size() < numCentrals; i++) {
+            for(size_t j = 0; j < gridSize && testCase.centrals.size() < numCentrals; j++) {
+                int x = i * stepX + stepX/2 + coordDist(gen) % std::max(1, stepX/4);
+                int y = j * stepY + stepY/2 + coordDist(gen) % std::max(1, stepY/4);
+                char id = static_cast<char>('A' + testCase.centrals.size());
+                testCase.centrals.push_back(Central(id, x, y));
             }
         }
         
-        for(size_t i = 0; i < centroids.size(); i++) {
-            char id = static_cast<char>('A' + (i % 26));
-            testCase.centrals.push_back(Central(id, centroids[i].x, centroids[i].y));
+        // Validar el caso generado
+        if (!testCase.isValid()) {
+            throw std::runtime_error("El caso generado no es válido");
         }
         
         return testCase;
