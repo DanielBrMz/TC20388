@@ -81,7 +81,7 @@ std::vector<std::pair<std::string, std::string>> findOptimalCabling(
      *    real donde no todas las colonias están directamente conectadas, proporcionando
      *    soluciones prácticas aunque la complejidad teórica sea mayor.
      */
-           
+
     size_t numNeighborhoods = distances.size();
     
     // Validación de entrada
@@ -519,34 +519,53 @@ int main() {
         }
         std::cout << "\nFlujo máximo: " << maxFlow << " unidades\n\n";
         
-        // 4. Procesamiento de centrales
+        // 4. Procesamiento de centrales con ubicaciones de prueba dinámicas
         std::cout << "4. Procesando ubicaciones y centrales...\n";
         std::cout << "Centrales disponibles: " << networkData.centrals.size() 
-                 << "\n\n";
-        
-        // Mostrar información de centrales
+                << "\n\n";
+
+        // Mostrar información de centrales existentes
         std::cout << std::fixed << std::setprecision(2);
         for (const auto& central : networkData.centrals) {
             std::cout << "Central " << central.neighborhood 
-                     << ": (" << central.x << ", " << central.y << ")\n";
+                    << ": (" << central.x << ", " << central.y << ")\n";
         }
-        
-        // Procesar ubicaciones de ejemplo
-        const std::vector<Point> testLocations = {
-            Point(25.0, 30.0),
-            Point(15.0, 15.0),
-            Point(40.0, 35.0),
-            Point(10.0, 20.0)
-        };
-        
-        std::cout << "\nAsignaciones de prueba:\n";
+
+        // Generar ubicaciones de prueba
+        size_t numTestLocations = std::min(10, static_cast<int>(networkData.centrals.size()) * 2);
+        auto testLocations = generator.generateTestLocations(networkData.centrals, numTestLocations);
+
+        // Procesar y mostrar asignaciones
+        std::cout << "\nAsignaciones de prueba (" << testLocations.size() << " ubicaciones):\n";
+        double avgAssignmentDistance = 0.0;
+        int assignmentCount = 0;
+
         for (const auto& location : testLocations) {
             char nearest = findNearestCentral(networkData.centrals, location);
-            std::cout << "(" << location.x << ", " << location.y 
-                     << ") -> Central " << nearest << "\n";
+            std::cout << "Ubicación (" << location.x << ", " << location.y 
+                    << ") -> Central " << nearest << "\n";
+                    
+            // Calcular distancia a la central asignada
+            for (const auto& central : networkData.centrals) {
+                if (central.neighborhood == nearest) {
+                    avgAssignmentDistance += location.distanceTo(Point(central.x, central.y));
+                    assignmentCount++;
+                    break;
+                }
+            }
         }
+
+        std::cout << "\nEstadísticas de asignación:\n";
+        if (assignmentCount > 0) {
+            std::cout << "Distancia promedio a central asignada: " 
+                    << (avgAssignmentDistance / assignmentCount) << " unidades\n";
+        }
+        std::cout << "\nProcesamiento completado exitosamente. (Tengo sueño) \n";
         
-        std::cout << "\nProcesamiento completado exitosamente.\n";
+    } catch (const std::invalid_argument& e) {
+        std::cerr << "\nError de argumento: " << e.what() << "\n";
+        return 1;
+
         
     } catch (const std::exception& e) {
         std::cerr << "\nError: " << e.what() << "\n";
