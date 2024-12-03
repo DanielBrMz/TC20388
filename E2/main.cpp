@@ -18,8 +18,12 @@
  * - Calcular el flujo máximo de información entre nodos
  * - Asignar nuevos clientes a la central más cercana
  * 
- * Autor: Daniel Alfredo Barreras Meraz
- * Matrícula: A01254805
+ * Autores:
+ * - Daniel Alfredo Barreras Meraz
+ * - Yair Salvador Beltran Rios
+ * Matrículas:
+ * - A01254805
+ * - A01254673
  * Fecha: 21 de octubre de 2024
  */
 
